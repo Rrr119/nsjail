@@ -38,6 +38,7 @@ const std::string connToText(int fd, bool remote, struct sockaddr_in6* addr_or_n
 bool initNs(nsj_t* nsj);
 bool initChildPreSync(nsj_t* nsj, int pipefd);
 bool initParent(nsj_t* nsj, pid_t pid, int pipefd);
+void applyNetNsPolicy(nsj_t* nsj);
 
 }  // namespace net
 

@@ -948,4 +948,43 @@ bool initNs(nsj_t* nsj) {
 	return initNsFromChild(nsj);
 }
 
+void applyNetNsPolicy(nsj_t* nsj) {
+	switch (nsj->njc.netns_policy()) {
+	case nsjail::NsJailConfig::NETNS_ISOLATED: {
+		bool overridden = !nsj->njc.clone_newnet() || !nsj->njc.iface_no_lo() ||
+		    !nsj->njc.macvlan_iface().empty() || nsj->njc.iface_own_size() > 0 ||
+		    nsj->njc.has_user_net() || nsj->njc.traffic_rule_size() > 0;
+		nsj->njc.set_clone_newnet(true);
+		nsj->njc.set_iface_no_lo(true);
+		nsj->njc.clear_macvlan_iface();
+		nsj->njc.clear_iface_own();
+		nsj->njc.clear_user_net();
+		nsj->njc.clear_traffic_rule();
+		if (overridden) {
+			LOG_I("netns_policy=NETNS_ISOLATED: forced a private, offline network "
+			      "namespace (ignored clone_newnet/iface/macvlan/user_net/"
+			      "traffic_rule settings)");
+		}
+	} break;
+	case nsjail::NsJailConfig::NETNS_HOST: {
+		bool overridden = nsj->njc.clone_newnet() || !nsj->njc.macvlan_iface().empty() ||
+		    nsj->njc.iface_own_size() > 0 || nsj->njc.has_user_net() ||
+		    nsj->njc.traffic_rule_size() > 0;
+		nsj->njc.set_clone_newnet(false);
+		nsj->njc.clear_macvlan_iface();
+		nsj->njc.clear_iface_own();
+		nsj->njc.clear_user_net();
+		nsj->njc.clear_traffic_rule();
+		if (overridden) {
+			LOG_I("netns_policy=NETNS_HOST: forced sharing of the host network "
+			      "namespace (ignored clone_newnet/iface/macvlan/user_net/"
+			      "traffic_rule settings)");
+		}
+	} break;
+	case nsjail::NsJailConfig::NETNS_CONFIG:
+	default:
+		break;
+	}
+}
+
 }  // namespace net

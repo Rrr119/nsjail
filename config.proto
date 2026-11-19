@@ -227,6 +227,43 @@ message NsJailConfig {
 	/* Use Linux core scheduling (PR_SCHED_CORE, requires kernel >= 5.14) */
 	optional bool use_core_scheduling = 101 [default = false];
 
+	/* Mount destination whitelist for multi-tenant use. If non-empty, every
+	   mount point destination (including the implicit chroot and procfs mounts)
+	   must be equal to, or nested under, one of these absolute paths, otherwise
+	   the jail refuses to start. Use "/" to allow everything (same as empty) */
+	repeated string mount_whitelist = 102;
+
+	/* Network namespace policy for multi-tenant use. Overrides the individual
+	   networking options (clone_newnet, iface_*, macvlan_*, user_net,
+	   traffic_rule) */
+	enum NetNsPolicy {
+		/* Honor the networking options as configured */
+		NETNS_CONFIG = 0;
+		/* Force a private, fully offline network namespace: CLONE_NEWNET with
+		   no interfaces brought up and no user-mode networking */
+		NETNS_ISOLATED = 1;
+		/* Force sharing the host network namespace (no CLONE_NEWNET) */
+		NETNS_HOST = 2;
+	}
+	optional NetNsPolicy netns_policy = 103 [default = NETNS_CONFIG];
+
+	/* A combined resource-limit profile, applied atomically. Each set field
+	   overrides the corresponding top-level rlimit or cgroup option; unset
+	   fields keep the top-level values. Cannot be combined with
+	   disable_rl: true */
+	message ResourceLimitCombo {
+		optional uint64 rlimit_as = 1;      /* In MiB */
+		optional uint64 rlimit_cpu = 2;     /* In seconds */
+		optional uint64 rlimit_fsize = 3;   /* In MiB */
+		optional uint64 rlimit_nofile = 4;
+		optional uint64 rlimit_nproc = 5;
+		optional uint64 rlimit_stack = 6;   /* In MiB */
+		optional uint64 cgroup_mem_max = 7; /* In bytes */
+		optional uint64 cgroup_pids_max = 8;
+		optional uint32 cgroup_cpu_ms_per_sec = 9;
+	}
+	optional ResourceLimitCombo resource_limits = 104;
+
 	/* If > 0, maximum cumulative size of RAM used inside any jail */
 	optional uint64 cgroup_mem_max = 71 [default = 0]; /* In bytes */
 	/* If > 0, maximum cumulative size of RAM + swap used inside any jail */

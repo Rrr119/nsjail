@@ -46,6 +46,53 @@
 
 namespace config {
 
+bool applyResourceLimitCombo(nsj_t* nsj) {
+	if (!nsj->njc.has_resource_limits()) {
+		return true;
+	}
+	if (nsj->njc.disable_rl()) {
+		LOG_E("resource_limits cannot be combined with disable_rl");
+		return false;
+	}
+	const auto& combo = nsj->njc.resource_limits();
+	if (combo.has_rlimit_as()) {
+		nsj->njc.set_rlimit_as(combo.rlimit_as());
+		nsj->njc.set_rlimit_as_type(nsjail::RLimit::VALUE);
+	}
+	if (combo.has_rlimit_cpu()) {
+		nsj->njc.set_rlimit_cpu(combo.rlimit_cpu());
+		nsj->njc.set_rlimit_cpu_type(nsjail::RLimit::VALUE);
+	}
+	if (combo.has_rlimit_fsize()) {
+		nsj->njc.set_rlimit_fsize(combo.rlimit_fsize());
+		nsj->njc.set_rlimit_fsize_type(nsjail::RLimit::VALUE);
+	}
+	if (combo.has_rlimit_nofile()) {
+		nsj->njc.set_rlimit_nofile(combo.rlimit_nofile());
+		nsj->njc.set_rlimit_nofile_type(nsjail::RLimit::VALUE);
+	}
+	if (combo.has_rlimit_nproc()) {
+		nsj->njc.set_rlimit_nproc(combo.rlimit_nproc());
+		nsj->njc.set_rlimit_nproc_type(nsjail::RLimit::VALUE);
+	}
+	if (combo.has_rlimit_stack()) {
+		nsj->njc.set_rlimit_stack(combo.rlimit_stack());
+		nsj->njc.set_rlimit_stack_type(nsjail::RLimit::VALUE);
+	}
+	if (combo.has_cgroup_mem_max()) {
+		nsj->njc.set_cgroup_mem_max(combo.cgroup_mem_max());
+	}
+	if (combo.has_cgroup_pids_max()) {
+		nsj->njc.set_cgroup_pids_max(combo.cgroup_pids_max());
+	}
+	if (combo.has_cgroup_cpu_ms_per_sec()) {
+		nsj->njc.set_cgroup_cpu_ms_per_sec(combo.cgroup_cpu_ms_per_sec());
+	}
+	LOG_I("Applied resource_limits combination: %s",
+	    combo.ShortDebugString().c_str());
+	return true;
+}
+
 uint64_t adjustRLimit(int res, const nsjail::RLimit& rl, const uint64_t val, unsigned long mul) {
 	if (rl == nsjail::RLimit::VALUE) {
 		if (mul != 0 && val > std::numeric_limits<uint64_t>::max() / mul) {

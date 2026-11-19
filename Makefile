@@ -166,7 +166,14 @@ test-newapi-recursive-readonly: $(BIN)
 	  if [ "$$ret" -eq 77 ]; then echo "SKIP: new mount API integration test"; \
 	  elif [ "$$ret" -ne 0 ]; then exit "$$ret"; fi
 
-test: $(BIN) $(TEST_BINS) test-cmdline test-newapi-recursive-readonly
+.PHONY: test-escape-attempts
+# Requires Linux with usable user namespaces (or root). Exit 77 is a capability skip.
+test-escape-attempts: $(BIN)
+	@./tests/escape-attempts.sh ./nsjail; ret=$$?; \
+	  if [ "$$ret" -eq 77 ]; then echo "SKIP: escape-attempt integration tests"; \
+	  elif [ "$$ret" -ne 0 ]; then exit "$$ret"; fi
+
+test: $(BIN) $(TEST_BINS) test-cmdline test-newapi-recursive-readonly test-escape-attempts
 	$(call run_test, ./tests/nstun_buffer_budget_test, 0)
 	$(call run_test, ./tests/nstun_policy_test, 0)
 	$(call run_test, ./tests/nstun_ip_test, 0)

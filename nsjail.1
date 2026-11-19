@@ -142,6 +142,9 @@ RLIMIT_STACK in MB, 'max' or 'hard' for the current hard limit, 'def' or 'soft' 
 \fB\-\-disable_rlimits\fR
 Disable all rlimits, default to limits set by parent
 .TP
+\fBresource_limits\fR (config file only)
+Combined resource-limit profile for multi-tenant setups. Each set field (rlimit_as, rlimit_cpu, rlimit_fsize, rlimit_nofile, rlimit_nproc, rlimit_stack, cgroup_mem_max, cgroup_pids_max, cgroup_cpu_ms_per_sec) overrides the corresponding individual option; unset fields keep the top-level values. Cannot be combined with \fB\-\-disable_rlimits\fR
+.TP
 \fB\-\-persona_addr_compat_layout\fR
 personality(ADDR_COMPAT_LAYOUT)
 .TP
@@ -198,6 +201,9 @@ Arbitrary mount, format src:dst:fs_type:options
 .TP
 \fB\-\-symlink\fR|\fB\-s\fR VALUE
 Symlink, format src:dst
+.TP
+\fB\-\-mount_whitelist\fR VALUE
+Only allow mount destinations under this absolute path (can be specified multiple times). If set, any mount outside the whitelist aborts the jail. Intended for multi-tenant setups; also available as the 'mount_whitelist' config file field
 .TP
 \fB\-\-disable_proc\fR
 Disable mounting procfs in the jail
@@ -267,6 +273,9 @@ Use cgroup v2
 .TP
 \fB\-\-iface_no_lo\fR
 Don't bring the 'lo' interface up
+.TP
+\fB\-\-netns_policy\fR VALUE
+Network namespace policy for multi-tenant setups: 'config' (honor the individual networking options, default), 'isolated' (force a private, fully offline network namespace), or 'host' (force sharing the host network namespace). Overrides clone_newnet, iface_*, macvlan_*, user_net and traffic_rule; also available as the 'netns_policy' config file field
 .TP
 \fB\-\-iface_own\fR VALUE
 Move this existing network interface into the new NET namespace. Can be specified multiple times

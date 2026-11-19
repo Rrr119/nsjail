@@ -29,6 +29,7 @@
 namespace config {
 
 bool parseFile(nsj_t* nsj, const char* file);
+bool applyResourceLimitCombo(nsj_t* nsj);
 uint64_t adjustRLimit(
     int res, const nsjail::RLimit& rl, const uint64_t val, unsigned long mul = 1UL);
 

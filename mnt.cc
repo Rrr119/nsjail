@@ -40,6 +40,7 @@
 #include <sys/wait.h>
 #include <unistd.h>
 
+#include <algorithm>
 #include <filesystem>
 #include <memory>
 #include <string>
@@ -137,6 +138,50 @@ const std::string describeMountPt(const nsjail::MountPt& mpt) {
 }
 
 namespace fs = std::filesystem;
+
+static bool mountDstWhitelisted(
+    const std::string& dst, const google::protobuf::RepeatedPtrField<std::string>& whitelist) {
+	const fs::path norm = fs::path(dst).lexically_normal();
+	if (norm.empty() || !norm.is_absolute()) {
+		return false;
+	}
+	for (const auto& entry : whitelist) {
+		const fs::path allowed = fs::path(entry).lexically_normal();
+		if (allowed.empty() || !allowed.is_absolute()) {
+			continue;
+		}
+		/* Component-wise comparison: "/app" matches "/app/data" but not "/application" */
+		auto [it_allowed, it_dst] =
+		    std::mismatch(allowed.begin(), allowed.end(), norm.begin(), norm.end());
+		if (it_allowed == allowed.end()) {
+			return true;
+		}
+	}
+	return false;
+}
+
+static bool enforceMountWhitelist(nsj_t* nsj) {
+	if (nsj->njc.mount_whitelist_size() == 0) {
+		return true;
+	}
+	for (const auto& entry : nsj->njc.mount_whitelist()) {
+		const fs::path allowed = fs::path(entry).lexically_normal();
+		if (allowed.empty() || !allowed.is_absolute()) {
+			LOG_E("mount_whitelist entry '%s' is not a valid absolute path", QC(entry));
+			return false;
+		}
+	}
+	for (const auto& mpt : nsj->njc.mount()) {
+		if (!mountDstWhitelisted(mpt.dst(), nsj->njc.mount_whitelist())) {
+			LOG_E("Mount destination '%s' (%s) is not allowed by mount_whitelist",
+			    QC(mpt.dst()), QC(describeMountPt(mpt)));
+			return false;
+		}
+	}
+	LOG_D("All %d mount destination(s) passed the mount_whitelist check",
+	    nsj->njc.mount_size());
+	return true;
+}
 
 static bool tryCreateDir(const std::string& path, bool log_errors = true) {
 	if (mkdir(path.c_str(), 0755) == -1 && errno != EEXIST) {
@@ -237,6 +282,10 @@ static bool initNoCloneNs(nsj_t* nsj) {
 }
 
 static bool initCloneNs(nsj_t* nsj) {
+	if (!enforceMountWhitelist(nsj)) {
+		return false;
+	}
+
 	std::vector<mount_t> mounted_mpts;
 	defer {
 		for (auto& p : mounted_mpts) {

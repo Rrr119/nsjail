@@ -1,0 +1,17 @@
+{
+  "root": "/home/dev/feedback/uid28706",
+  "B": "/home/dev/feedback/uid28706",
+  "sha": "56f0ff0d381f2633c7912fbb43ce58ff01dfd5b0",
+  "wslDistro": "Ubuntu-26.04",
+  "source": {
+    "owner": "google",
+    "repo": "nsjail",
+    "sha": "56f0ff0d381f2633c7912fbb43ce58ff01dfd5b0"
+  },
+  "fork": {
+    "owner": "Rrr119",
+    "repo": "nsjail",
+    "cloneUrl": "https://github.com/Rrr119/nsjail.git"
+  },
+  "at": "2026-11-19T17:30:40.792Z"
+}

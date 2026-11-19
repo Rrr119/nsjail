@@ -56,6 +56,7 @@
 #include "macros.h"
 #include "mnt.h"
 #include "mnt_newapi.h"
+#include "net.h"
 #include "user.h"
 #include "util.h"
 
@@ -139,6 +140,7 @@ static const struct custom_option custom_opts[] = {
     { { "tmpfsmount", required_argument, nullptr, 'T' }, "List of mountpoints to be mounted as tmpfs (R/W) inside the container. Can be specified multiple times. Supports 'dest' syntax. Alternatively, use '-m none:dest:tmpfs:size=8388608'" },
     { { "mount", required_argument, nullptr, 'm' }, "Arbitrary mount, format src:dst:fs_type:options" },
     { { "symlink", required_argument, nullptr, 's' }, "Symlink, format src:dst" },
+    { { "mount_whitelist", required_argument, nullptr, 0x060A }, "Only allow mount destinations under this absolute path (can be specified multiple times). If set, any mount outside the whitelist aborts the jail" },
     { { "disable_proc", no_argument, nullptr, 0x0603 }, "Disable mounting procfs in the jail" },
     { { "proc_path", required_argument, nullptr, 0x0605 }, "Path used to mount procfs (default: '/proc')" },
     { { "proc_rw", no_argument, nullptr, 0x0606 }, "Is procfs mounted as R/W (default: R/O)" },
@@ -178,6 +180,7 @@ static const struct custom_option custom_opts[] = {
     { { "forward_signals", no_argument, nullptr, 0x708 }, "Forward fatal signals to the child process instead of always using SIGKILL." },
     { { "use_core_scheduling", no_argument, nullptr, 0x709 }, "Enable Linux core scheduling (PR_SCHED_CORE, requires kernel >= 5.14)" },
     { { "user_net", no_argument, nullptr, 0x70A }, "Enable user-mode networking (nstun backend)" },
+    { { "netns_policy", required_argument, nullptr, 0x70B }, "Network namespace policy: 'config' (honor individual options, default), 'isolated' (force a private, fully offline network namespace), 'host' (force sharing the host network namespace)" },
     { { "oom_score_adj", required_argument, nullptr, 0x800 }, "OOM score adjustment for the sandbox (-1000 to 1000) (default: not set)" },
 };
 // clang-format on
@@ -820,6 +823,23 @@ std::unique_ptr<nsj_t> parseArgs(int argc, char* argv[]) {
 			nsj->njc.mutable_user_net()->set_backend(
 			    nsjail::NsJailConfig_UserNet_Backend_NSTUN);
 			break;
+		case 0x060A:
+			nsj->njc.add_mount_whitelist(optarg);
+			break;
+		case 0x70B: {
+			if (strcasecmp(optarg, "config") == 0) {
+				nsj->njc.set_netns_policy(nsjail::NsJailConfig::NETNS_CONFIG);
+			} else if (strcasecmp(optarg, "isolated") == 0) {
+				nsj->njc.set_netns_policy(nsjail::NsJailConfig::NETNS_ISOLATED);
+			} else if (strcasecmp(optarg, "host") == 0) {
+				nsj->njc.set_netns_policy(nsjail::NsJailConfig::NETNS_HOST);
+			} else {
+				LOG_E("Invalid --netns_policy value: '%s' (expected "
+				      "'config'/'isolated'/'host')",
+				    optarg);
+				return nullptr;
+			}
+		} break;
 		case 'u': {
 			std::vector<std::string> subopts = util::strSplit(optarg, ':');
 			std::string i_id = argFromVec(subopts, 0);
@@ -1132,6 +1152,15 @@ std::unique_ptr<nsj_t> parseArgs(int argc, char* argv[]) {
 	if (nsj->njc.cgroup_mem_memsw_max() > (size_t)0 &&
 	    nsj->njc.cgroup_mem_swap_max() >= (ssize_t)0) {
 		LOG_F("cannot set both cgroup_mem_memsw_max and cgroup_mem_swap_max");
+	}
+
+	/*
+	 * Multi-tenant guardrails, applied last so they override any individual
+	 * option set via the config file or the command line.
+	 */
+	net::applyNetNsPolicy(nsj.get());
+	if (!config::applyResourceLimitCombo(nsj.get())) {
+		return nullptr;
 	}
 
 	return nsj;
